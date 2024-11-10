@@ -3,9 +3,11 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include <fstream>   
-#include <sstream>   
-#include <algorithm> 
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <limits>
+#include <cctype>
 
 class TrieNode {
 public:
@@ -17,14 +19,23 @@ class Trie {
 private:
     TrieNode* root;
 
+    std::string toLowerCase(const std::string& str) {
+        std::string result;
+        for (char ch : str) {
+            result += std::tolower(ch);
+        }
+        return result;
+    }
+
 public:
     Trie() {
         root = new TrieNode();
     }
 
-    void insert(const std::string& word) {
+    void insert(const std::string& sentence) {
         TrieNode* node = root;
-        for (char ch : word) {
+        std::string lowerSentence = toLowerCase(sentence);
+        for (char ch : lowerSentence) {
             if (node->children.find(ch) == node->children.end()) {
                 node->children[ch] = new TrieNode();
             }
@@ -40,37 +51,84 @@ public:
         }
     }
 
-    std::vector<std::string> getSuggestions(const std::string& prefix, int limit = 5) {
+    std::vector<std::string> getSuggestions(const std::string& prefix) {
         TrieNode* node = root;
-        for (char ch : prefix) {
+        std::string lowerPrefix = toLowerCase(prefix);
+        for (char ch : lowerPrefix) {
             if (node->children.find(ch) == node->children.end()) {
-                return {}; // No suggestions
+                return {}; 
             }
             node = node->children[ch];
         }
+
         std::vector<std::string> results;
-        searchPrefix(node, prefix, results);
+        searchPrefix(node, lowerPrefix, results);
+
+        std::sort(results.begin(), results.end());
+
+          
+
+        return results;
+    }
+
+
+    int levenshteinDistance(const std::string& a, const std::string& b) {
+        int m = a.size();
+        int n = b.size();
+        std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
+
+        for (int i = 0; i <= m; ++i) dp[i][0] = i;
+        for (int j = 0; j <= n; ++j) dp[0][j] = j;
+
+        for (int i = 1; i <= m; ++i) {
+            for (int j = 1; j <= n; ++j) {
+                if (a[i - 1] == b[j - 1]) {
+                    dp[i][j] = dp[i - 1][j - 1];
+                }
+                else {
+                    dp[i][j] = 1 + std::min({ dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1] });
+                }
+            }
+        }
+        return dp[m][n];
+    }
+
+    void getAllWords(TrieNode* node, const std::string& current, std::vector<std::string>& words) {
+        if (node->isEndOfWord) words.push_back(current);
+        for (auto& pair : node->children) {
+            getAllWords(pair.second, current + pair.first, words);
+        }
+    }
+
+    std::vector<std::string> getClosestSuggestions(const std::string& word, int maxDistance = 2) {
+        std::vector<std::string> allWords;
+        getAllWords(root, "", allWords);
+
+        std::vector<std::string> results;
+        std::string lowerWord = toLowerCase(word);
+        for (const auto& candidate : allWords) {
+            int distance = levenshteinDistance(lowerWord, candidate);
+            if (distance <= maxDistance) {
+                results.push_back(candidate);
+            }
+        }
+        std::sort(results.begin(), results.end(), [&](const std::string& a, const std::string& b) {
+            return levenshteinDistance(lowerWord, a) < levenshteinDistance(lowerWord, b);
+            });
         return results;
     }
 };
 
-// Modified function to load words from a comma-separated text file
-void loadWordsFromFile(Trie& trie, const std::string& filename) {
+void loadWordsAndSentencesFromFile(Trie& trie, const std::string& filename) {
     std::ifstream file(filename);
     if (file.is_open()) {
-        std::string line;
-        std::getline(file, line); // Read the whole line (all words)
+        std::string entry;
+        while (std::getline(file, entry, ',')) {
+            entry.erase(entry.begin(), std::find_if(entry.begin(), entry.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+            entry.erase(std::find_if(entry.rbegin(), entry.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), entry.end());
 
-        std::stringstream ss(line);
-        std::string word;
-
-        while (std::getline(ss, word, ',')) {
-            // Remove any leading/trailing whitespace from each word
-            word.erase(word.begin(), std::find_if(word.begin(), word.end(), [](unsigned char ch) { return !std::isspace(ch); }));
-            word.erase(std::find_if(word.rbegin(), word.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), word.end());
-
-            if (!word.empty()) {
-                trie.insert(word);
+            if (!entry.empty()) {
+                trie.insert(entry);
             }
         }
         file.close();
@@ -82,32 +140,28 @@ void loadWordsFromFile(Trie& trie, const std::string& filename) {
 
 int main() {
     Trie trie;
-    loadWordsFromFile(trie, "D:/Third Year Sem-5/Design and Analysis of Algorithm/Assignment/text.txt");
+    loadWordsAndSentencesFromFile(trie, "text.txt");
 
-    sf::RenderWindow window(sf::VideoMode(1000,1000), "Trie Search System");
+    sf::RenderWindow window(sf::VideoMode(1000, 1000), "Trie Search System");
 
-    // Load font
     sf::Font font;
-    if (!font.loadFromFile("D:/Third Year Sem-5/Design and Analysis of Algorithm/Assignment/Debug/Fonts/black.ttf")) {
+    if (!font.loadFromFile("./Fonts/black.ttf")) {
         std::cout << "Error loading font\n";
         return -1;
     }
 
-    // Load background
     sf::Texture backgroundTexture;
-    if (!backgroundTexture.loadFromFile("D:/Third Year Sem-5/Design and Analysis of Algorithm/Assignment/background.jpg")) {
+    if (!backgroundTexture.loadFromFile("background.jpg")) {
         std::cout << "Error loading background image\n";
         return -1;
     }
     sf::Sprite backgroundSprite(backgroundTexture);
 
-    // Input text setup
     sf::Text inputText;
     inputText.setFont(font);
     inputText.setCharacterSize(24);
     inputText.setFillColor(sf::Color::White);
 
-    // Suggestion text setup
     sf::Text suggestionText;
     suggestionText.setFont(font);
     suggestionText.setCharacterSize(20);
@@ -116,7 +170,6 @@ int main() {
     std::string userInput;
     std::vector<std::string> suggestions;
 
-    // Main loop
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
@@ -124,30 +177,35 @@ int main() {
                 window.close();
             else if (event.type == sf::Event::TextEntered) {
                 if (event.text.unicode == '\b' && !userInput.empty()) {
-                    userInput.pop_back(); // Handle backspace
+                    userInput.pop_back();
                 }
                 else if (event.text.unicode < 128 && event.text.unicode != '\b') {
-                    userInput += static_cast<char>(event.text.unicode);
+                    userInput += std::tolower(static_cast<char>(event.text.unicode));
                 }
+
                 suggestions = trie.getSuggestions(userInput);
+
+                if (suggestions.empty()) {
+                    suggestions = trie.getClosestSuggestions(userInput, 2);
+                }
+            }
+            else if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Tab && !suggestions.empty()) {
+                    userInput = suggestions[0];
+                }
             }
         }
 
-        // Update displayed text
         inputText.setString("Input: " + userInput);
         inputText.setPosition((window.getSize().x - inputText.getLocalBounds().width) / 2, 50);
 
-        // Prepare suggestion display
         std::string suggestionStr = "Suggestions:\n";
-        int count = 0;
         for (const auto& suggestion : suggestions) {
-            if (++count > 5) break;
             suggestionStr += suggestion + "\n";
         }
         suggestionText.setString(suggestionStr);
         suggestionText.setPosition((window.getSize().x - suggestionText.getLocalBounds().width) / 2, 100);
 
-        // Rendering
         window.clear();
         window.draw(backgroundSprite);
         window.draw(inputText);
