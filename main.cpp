@@ -45,8 +45,9 @@ public:
     }
 
     void searchPrefix(TrieNode* node, const std::string& prefix, std::vector<std::string>& results) {
-        if (node->isEndOfWord) results.push_back(prefix);
+        if (node->isEndOfWord && results.size() < 10) results.push_back(prefix);
         for (auto& pair : node->children) {
+            if (results.size() >= 10) return;
             searchPrefix(pair.second, prefix + pair.first, results);
         }
     }
@@ -56,21 +57,16 @@ public:
         std::string lowerPrefix = toLowerCase(prefix);
         for (char ch : lowerPrefix) {
             if (node->children.find(ch) == node->children.end()) {
-                return {}; 
+                return {};
             }
             node = node->children[ch];
         }
 
         std::vector<std::string> results;
         searchPrefix(node, lowerPrefix, results);
-
         std::sort(results.begin(), results.end());
-
-          
-
         return results;
     }
-
 
     int levenshteinDistance(const std::string& a, const std::string& b) {
         int m = a.size();
@@ -107,8 +103,7 @@ public:
         std::vector<std::string> results;
         std::string lowerWord = toLowerCase(word);
         for (const auto& candidate : allWords) {
-            int distance = levenshteinDistance(lowerWord, candidate);
-            if (distance <= maxDistance) {
+            if (levenshteinDistance(lowerWord, candidate) <= maxDistance) {
                 results.push_back(candidate);
             }
         }
@@ -142,7 +137,7 @@ int main() {
     Trie trie;
     loadWordsAndSentencesFromFile(trie, "text.txt");
 
-    sf::RenderWindow window(sf::VideoMode(1000, 1000), "Trie Search System");
+    sf::RenderWindow window(sf::VideoMode(1200, 1300), "Trie Search System");
 
     sf::Font font;
     if (!font.loadFromFile("./Fonts/black.ttf")) {
@@ -159,12 +154,12 @@ int main() {
 
     sf::Text inputText;
     inputText.setFont(font);
-    inputText.setCharacterSize(24);
+    inputText.setCharacterSize(42);
     inputText.setFillColor(sf::Color::White);
 
     sf::Text suggestionText;
     suggestionText.setFont(font);
-    suggestionText.setCharacterSize(20);
+    suggestionText.setCharacterSize(36);
     suggestionText.setFillColor(sf::Color::Cyan);
 
     std::string userInput;
@@ -184,7 +179,6 @@ int main() {
                 }
 
                 suggestions = trie.getSuggestions(userInput);
-
                 if (suggestions.empty()) {
                     suggestions = trie.getClosestSuggestions(userInput, 2);
                 }
