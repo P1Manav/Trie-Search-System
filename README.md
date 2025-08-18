@@ -4,7 +4,7 @@ If you just want to play the game without modifying the code, follow these simpl
 1. **Clone the Repository**:
    - Clone this repository to your local machine using the following command:
      ```bash
-     git clone https://github.com/P1Manav/TRON_GAME.git
+     git clone https://github.com/P1Manav/Trie-Search-System.git
      ```
 
 2. **Run the Game**:
@@ -17,7 +17,7 @@ If you want to view, modify, or understand the code, follow these steps to set u
 1. **Clone the Repository**:
    - Clone this repository to your local machine using the following command:
      ```bash
-     git clone https://github.com/P1Manav/TRON_GAME.git
+     git clone https://github.com/P1Manav/Trie-Search-System.git
      ```
 
 2. **Setup Visual Studio**:
